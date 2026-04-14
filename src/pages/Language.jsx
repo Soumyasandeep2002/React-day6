@@ -1,7 +1,6 @@
 import { useState } from "react";
 
 export default function Language() {
-  // 🔹 Dummy data (replace with API later)
   const [vpaId] = useState("merchant1@cbin");
   const [serialNumber] = useState("456954659876857");
   const [currentLanguage] = useState("ENGLISH");
@@ -17,7 +16,6 @@ export default function Language() {
 
     setShowToast(true);
 
-    // Auto hide toast
     setTimeout(() => {
       setShowToast(false);
     }, 3000);
@@ -115,14 +113,14 @@ const cardStyle = {
 
 const gridStyle = {
   display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))", // ✅ FIX
+  gridTemplateColumns: "repeat(2, minmax(0, 1fr))", 
   columnGap: "20px",
   rowGap: "25px",
 };
 
 const labelStyle = {
   display: "block",
-  marginBottom: "8px", // ✅ increased from 5px
+  marginBottom: "8px",
   color: "#000",
   fontSize: "14px",
 };
@@ -134,7 +132,7 @@ const inputStyle = {
   borderRadius: "5px",
   background: "#fff",
   color: "#000",
-  boxSizing: "border-box",   // ✅ IMPORTANT FIX
+  boxSizing: "border-box",  
 };
 
 const btnContainer = {

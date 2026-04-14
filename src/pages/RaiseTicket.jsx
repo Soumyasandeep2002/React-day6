@@ -20,17 +20,15 @@ export default function RaiseTicket() {
 
   const [errors, setErrors] = useState({});
 
-  // 🔹 Handle Change
   const handleChange = (field, value) => {
     setForm({ ...form, [field]: value });
     setErrors({ ...errors, [field]: "" });
   };
 
-  // 🔹 Validate Single Field (on blur)
   const validateField = (field, value) => {
   let error = "";
 
-  if (field !== "file" && !value) error = "Required"; // ❌ exclude file
+  if (field !== "file" && !value) error = "Required"; 
 
   if (field === "description" && value) {
     if (value.split(" ").length > 300) {
@@ -40,12 +38,11 @@ export default function RaiseTicket() {
 
   setErrors((prev) => ({ ...prev, [field]: error }));
 };
-  // 🔹 Full Validation
  const validate = () => {
   let newErrors = {};
 
   Object.keys(form).forEach((key) => {
-    if (key !== "file" && !form[key]) {  // ❌ exclude file
+    if (key !== "file" && !form[key]) { 
       newErrors[key] = "Required";
     }
   });

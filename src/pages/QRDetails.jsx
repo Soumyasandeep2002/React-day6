@@ -5,24 +5,20 @@ export default function QRDetails() {
   const [amount, setAmount] = useState("");
   const [qrData, setQrData] = useState("");
 
-  // 🔹 Dummy Static QR (replace later with API)
   const staticQR =
     "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=STATIC_QR";
 
-  // 🔹 Generate Dynamic QR
   const generateQR = () => {
     if (!amount) {
       alert("Enter amount");
       return;
     }
 
-    // Dummy QR (replace with API later)
     const dynamicQR = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=AMOUNT_${amount}`;
 
     setQrData(dynamicQR);
   };
 
-  // 🔹 Download QR
   const downloadQR = () => {
     const link = document.createElement("a");
     link.href = qrData || staticQR;
@@ -76,7 +72,7 @@ export default function QRDetails() {
               <div
                 style={{
                   display: "flex",
-                  alignItems: "flex-end", // ✅ aligns button nicely with input
+                  alignItems: "flex-end", 
                   gap: "10px",
                   marginTop: "5px",
                 }}
@@ -87,7 +83,7 @@ export default function QRDetails() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   style={{
-                    width: "500px", // ✅ as requested
+                    width: "500px",
                     padding: "10px",
                     border: "1px solid #ccc",
                     borderRadius: "5px",
@@ -98,7 +94,7 @@ export default function QRDetails() {
 
                 <button
                   style={{
-                    height: "40px", // ✅ same visual height as input
+                    height: "40px", 
                     padding: "0 15px",
                     background: "#2b6cb0",
                     color: "#fff",

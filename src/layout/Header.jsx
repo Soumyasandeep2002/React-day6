@@ -1,181 +1,58 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import CBOILogo from "../components/CBOILogo";
+import MenuOpenIcon from "@mui/icons-material/MenuOpen";
+import { Avatar, Typography } from "@mui/material";
+import { userManager } from "../services/authService";
+import { useEffect, useState } from "react";
 
-export default function Header() {
-  const [open, setOpen] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const navigate = useNavigate();
+export default function Header({ onToggleSidebar, collapsed }) {
+  const [user, setUser] = useState(null);
 
-  const logout = () => {
-    localStorage.removeItem("isAuthenticated");
-    navigate("/");
-  };
-
+  useEffect(() => {
+    const loadUser = async () => {
+      const userObject = await userManager.getUser();
+      setUser(userObject?.profile || null);
+    };
+    loadUser();
+  }, []);
+  const userInitial = user?.given_name?.charAt(0)?.toUpperCase()
+  console.log("User in header:", user);
   return (
-    <>
-      <div
-        style={{
-          height: "60px",
-          background: "#fff",
-          display: "flex",
-          justifyContent: "space-between", // ✅ left + right
-          alignItems: "center", // ✅ vertical center
-          padding: "0 20px",
-          borderBottom: "1px solid #eee",
-        }}
-      >
-        {/* LEFT LOGO */}
-        <div
-          style={{ display: "flex", alignItems: "center", paddingTop: "30px" }}
-        >
-          <CBOILogo />
-        </div>
-
-        {/* USER */}
-        <div style={{ position: "relative" }}>
-          <div onClick={() => setOpen(!open)} style={avatarStyle}>
-            A
-          </div>
-
-          {/* DROPDOWN */}
-          {open && (
-            <div style={dropdownStyle}>
-              <div
-                onClick={() => {
-                  setShowProfile(true); // ✅ OPEN POPUP
-                  setOpen(false);
-                }}
-                style={dropdownItem}
-              >
-                View Profile
-              </div>
-
-              <div onClick={logout} style={dropdownItem}>
-                Logout
-              </div>
-            </div>
-          )}
-        </div>
+    <div style={headerStyle}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {collapsed ? (
+          <MenuOpenIcon
+            onClick={onToggleSidebar}
+            sx={{ ...toggleStyle, transform: "scaleX(-1)" }}
+          />
+        ) : (
+          <MenuOpenIcon onClick={onToggleSidebar} sx={toggleStyle} />
+        )}
       </div>
 
-      {/* PROFILE POPUP */}
-      {showProfile && (
-        <div style={overlayStyle}>
-          <div style={popupStyle}>
-            <h3>View Profile Details</h3>
+      <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
 
-            <h4 style={sectionTitle}>Basic Information</h4>
-            <p>
-              <b>Name:</b> Stebin Ben
-            </p>
-            <p>
-              <b>Phone:</b> +91 9398239231
-            </p>
-
-            <h4 style={sectionTitle}>Device Information</h4>
-            <p>
-              <b>Device Serial Number:</b> 456954659876857
-            </p>
-            <p>
-              <b>Linked Account Number:</b> XXXXXX6857
-            </p>
-            <p>
-              <b>UPI ID:</b> rudransh.panigrahi@cbin
-            </p>
-            <p>
-              <b>IFSC Code:</b> CBOI0283896
-            </p>
-            <p>
-              <b>Device Model Name:</b> Morefun ET389
-            </p>
-            <p>
-              <b>Device Mobile Number:</b> +91 9398239231
-            </p>
-            <p>
-              <b>Network Type:</b> BSNL
-            </p>
-            <p>
-              <b>Device Status:</b> Active
-            </p>
-            <p>
-              <b>Battery Percentage:</b> 60%
-            </p>
-            <p>
-              <b>Network Strength:</b> Strong
-            </p>
-
-            <button onClick={() => setShowProfile(false)} style={closeBtn}>
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-    </>
-  );
+        <Typography fontSize="14px">
+          {user?.given_name}
+        </Typography>
+        <Avatar sx={{ width: 30, height: 30, fontSize: 16 }}>
+          {userInitial}
+        </Avatar>
+      </div>
+    </div>
+  )
 }
 
-const avatarStyle = {
-  width: "35px",
-  height: "35px",
-  borderRadius: "50%",
-  background: "#2b6cb0",
-  color: "#fff",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  cursor: "pointer",
-};
-
-const dropdownStyle = {
-  position: "absolute",
-  right: 0,
-  top: "45px",
+const headerStyle = {
+  height: "60px",
   background: "#fff",
-  border: "1px solid #ddd",
-  borderRadius: "6px",
-  width: "150px",
-  boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-};
-
-const dropdownItem = {
-  padding: "10px",
-  cursor: "pointer",
-  borderBottom: "1px solid #eee",
-};
-
-const overlayStyle = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  width: "100%",
-  height: "100%",
-  background: "rgba(0,0,0,0.4)",
   display: "flex",
-  justifyContent: "center",
+  justifyContent: "space-between",
   alignItems: "center",
-  zIndex: 1000,
+  padding: "0 20px",
 };
 
-const popupStyle = {
-  background: "#fff",
-  padding: "20px",
-  borderRadius: "10px",
-  width: "400px",
-  maxHeight: "80vh",
-  overflowY: "auto",
-};
-
-const sectionTitle = {
-  marginTop: "10px",
-};
-
-const closeBtn = {
-  marginTop: "15px",
-  padding: "8px 12px",
-  background: "#2b6cb0",
-  color: "#fff",
-  border: "none",
-  borderRadius: "5px",
+const toggleStyle = {
   cursor: "pointer",
+  background: "#f1f3f5",
+  borderRadius: "8px",
+  padding: "6px",
 };

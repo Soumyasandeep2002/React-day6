@@ -1,178 +1,315 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { apiService } from "../services/serviceApi";
+import VpaSelectorDialog from "../components/VpaSelectorDialog";
+
+import { Box, Typography, Card, Select, MenuItem, Grid } from "@mui/material";
+
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
+import PhoneAndroidIcon from "@mui/icons-material/PhoneAndroid";
+import SyncAltIcon from "@mui/icons-material/SyncAlt";
+import LocalAtmIcon from "@mui/icons-material/LocalAtm";
+import { getFormattedDate, fetchReportData } from "../utility/utils";
+
+import {useApp} from "../context/AppContext";
 
 export default function Dashboard() {
-  const navigate = useNavigate();
+  const [vpaList, setVpaList] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [openDialog, setOpenDialog] = useState(false);
+  const [tempSelection, setTempSelection] = useState(null);
+  const [dateFilter, setDateFilter] = useState("today");
 
-  const [showPopup, setShowPopup] = useState(false);
-  const [filter, setFilter] = useState("today");
+  const { selectedVpa, setSelectedVpa, reportData, setReportData } = useApp();
 
-  // 🔹 Dummy VPA data
-  const vpaList = [
-    {
-      vpa: "merchant1@cbin",
-      total: "₹ 50,000",
-      today: "₹ 8,500",
-      yesterday: "₹ 6,200",
-    },
-    {
-      vpa: "merchant2@cbin",
-      total: "₹ 30,000",
-      today: "₹ 5,200",
-      yesterday: "₹ 3,800",
-    },
-    {
-      vpa: "merchant3@cbin",
-      total: "₹ 15,000",
-      today: "₹ 2,100",
-      yesterday: "₹ 1,500",
-    },
-  ];
+  const hasFetched = useRef(false);
 
-  // ✅ Selected VPA (state now)
-  const [selectedVPA, setSelectedVPA] = useState(vpaList[0]);
+  useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
 
-  // ✅ Handle VPA selection
-  const handleSelectVPA = (item) => {
-    setSelectedVPA(item);
-    setShowPopup(false);
+    const load = async () => {
+      try {
+        setLoading(true);
+
+        const res = await apiService.fetchUserById({
+          mobile_number: "9348781833",
+        });
+
+        const list = res?.data || [];
+
+        setVpaList(list);
+
+        if (list.length > 0) {
+          setTempSelection(list[0]);
+          setOpenDialog(true);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, []);
+
+  const handleProceed = async () => {
+    setLoading(true);
+
+    const data = await fetchReportData(tempSelection, dateFilter);
+
+    setReportData({
+      count: data.count,
+      amount: data.amount,
+    });
+
+    setSelectedVpa(tempSelection);
+    setOpenDialog(false);
+
+    setLoading(false);
   };
 
+  useEffect(() => {
+    const load = async () => {
+      if (selectedVpa) {
+        const data = await fetchReportData(selectedVpa, dateFilter);
+
+        setReportData({
+          count: data.count,
+          amount: data.amount,
+        });
+      }
+    };
+
+    load();
+  }, [dateFilter]);
+
+  if (loading) return <div>Loading...</div>;
+
   return (
-    <div style={{ padding: "20px" }}>
-      
-      {/* TOP BAR */}
-      <div
-        style={{
+    <Box p={3}>
+      {/* HEADER */}
+      <Box
+        sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          marginBottom: "20px",
+          mb: 2,
+          width: "100%",
         }}
       >
         {/* LEFT */}
-        <div>
-          <h2 style={{ margin: 0, color: "#000" }}>Dashboard</h2>
-
-          <div style={{ marginTop: "5px" }}>
-            <span style={{ fontSize: "14px", color: "#555" }}>
-              VPA ID:
-            </span>{" "}
-            <span
-              onClick={() => setShowPopup(true)}
-              style={{
-                color: "#2b6cb0",
-                fontWeight: "bold",
-                cursor: "pointer",
-              }}
-            >
-              {selectedVPA.vpa}
-            </span>
-          </div>
-        </div>
-
-        {/* RIGHT DROPDOWN */}
-        <select
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          style={{
-            padding: "8px 12px",
-            borderRadius: "6px",
-            border: "1px solid #ccc",
-            fontSize: "14px",
-            background: "#fff",
-            color: "#000",
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "4px",
+            flexShrink: 0, 
           }}
         >
-          <option value="today">Today</option>
-          <option value="yesterday">Yesterday</option>
-        </select>
-      </div>
+          <Typography variant="h6" sx={{ color: "#1d1d1d" }}>
+            Dashboard
+          </Typography>
 
-      {/* CARDS */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(2, 1fr)",
-          gap: "20px",
-        }}
-      >
-        <div style={cardStyle}>
-          <h4 style={{ color: "#000" }}>Total Transactions</h4>
-          <p style={{ color: "#000" }}>{selectedVPA.total}</p>
-        </div>
+          <Typography variant="body2">
+            <b>VPA ID :</b>{" "}
+            <span
+              style={{
+                color: "#1976d2",
+                cursor: "pointer",
+                fontWeight: 600,
+              }}
+              onClick={() => setOpenDialog(true)}
+            >
+              {selectedVpa?.vpa_id}
+            </span>
+          </Typography>
+        </Box>
 
-        <div style={cardStyle}>
-          <h4 style={{ color: "#000" }}>
-            {filter === "today"
-              ? "Today's Transactions"
-              : "Yesterday's Transactions"}
-          </h4>
-          <p style={{ color: "#000" }}>
-            {filter === "today"
-              ? selectedVPA.today
-              : selectedVPA.yesterday}
-          </p>
-        </div>
-      </div>
+        {/* RIGHT */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            minWidth: "140px", 
+          }}
+        >
+          <Select
+            size="small"
+            value={dateFilter}
+            onChange={(e) => setDateFilter(e.target.value)}
+            sx={{
+              minWidth: 120,
+              background: "#fff",
+              borderRadius: "8px",
+            }}
+          >
+            <MenuItem value="today">Today</MenuItem>
+            <MenuItem value="yesterday">Yesterday</MenuItem>
+          </Select>
+        </Box>
+      </Box>
 
-      {/* POPUP */}
-      {showPopup && (
-        <div style={overlayStyle}>
-          <div style={popupStyle}>
-            <h3 style={{ color: "#000" }}>Select VPA</h3>
-
-            {vpaList.map((item, index) => (
-              <div
-                key={index}
-                onClick={() => handleSelectVPA(item)}
-                style={{
-                  padding: "10px",
-                  borderBottom: "1px solid #eee",
-                  cursor: "pointer",
-                  fontWeight: "bold",
-                  color: "#2b6cb0",
+      {/* KPI */}
+      <Box sx={{ marginTop: 3 }}>
+        {selectedVpa && (
+          <Grid
+            container
+            spacing={3}
+            mt={8}
+            columnSpacing={12} 
+          >
+            {/* TRANSACTIONS */}
+            <Grid
+              item
+              xs={12}
+              md={6}
+              display="flex"
+              justifyContent="flex-start"
+            >
+              <Card
+                sx={{
+                  borderRadius: 3,
+                  px: 3,
+                  py: 2,
+                  width: "100%",
+                  maxWidth: "480px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
                 }}
               >
-                {item.vpa}
-              </div>
-            ))}
+                {/* LEFT */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5, 
+                  }}
+                >
+                  <Box
+                    sx={{
+                      background: "#e3f2fd",
+                      width: 36,
+                      height: 36,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <SyncAltIcon sx={{ color: "#000", fontSize: 18 }} />
+                  </Box>
 
-            <button
-              onClick={() => setShowPopup(false)}
-              style={{ marginTop: "15px" }}
+                  <Typography
+                    sx={{
+                      fontSize: "13px",
+                      color: "#6b7280",
+                      fontWeight: 500,
+                      whiteSpace: "nowrap"
+                    }}
+                  >
+                    Total Transactions
+                  </Typography>
+                </Box>
+
+                {/* RIGHT VALUE */}
+                <Typography
+                  sx={{
+                    fontSize: "18px",
+                    fontWeight: 600,
+                  }}
+                >
+                  {reportData?.count}
+                </Typography>
+              </Card>
+            </Grid>
+
+            {/* AMOUNT */}
+            <Grid
+              item
+              xs={12}
+              md={6}
+              display="flex"
+              justifyContent="flex-start"
             >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
+              <Card
+                sx={{
+                  borderRadius: 3,
+                  px: 3,
+                  py: 2,
+                  width: "100%",
+                  maxWidth: "480px",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                }}
+              >
+                {/* LEFT */}
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1.5,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      background: "#e3f2fd",
+                      width: 36,
+                      height: 36,
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      flexShrink: 0,
+                    }}
+                  >
+                    <LocalAtmIcon sx={{ color: "#000", fontSize: 18 }} />
+                  </Box>
+
+                  <Typography
+                    sx={{
+                      fontSize: "13px",
+                      color: "#6b7280",
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    Total Amount
+                  </Typography>
+                </Box>
+
+                {/* RIGHT VALUE */}
+                <Typography
+                  sx={{
+                    fontSize: "18px",
+                    fontWeight: 600,
+                  }}
+                >
+                  {reportData?.amount}
+                </Typography>
+              </Card>
+            </Grid>
+          </Grid>
+        )}
+      </Box>
+
+      {/* DIALOG COMPONENT */}
+      <VpaSelectorDialog
+        open={openDialog}
+        vpaList={vpaList}
+        tempSelection={tempSelection}
+        setTempSelection={setTempSelection}
+        onCancel={() => {
+          if (selectedVpa) setOpenDialog(false);
+        }}
+        onProceed={handleProceed}
+      />
+    </Box>
   );
 }
-
-const cardStyle = {
-  padding: "20px",
-  background: "#fff",
-  borderRadius: "10px",
-  boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-};
-
-const overlayStyle = {
-  position: "fixed",
-  top: 0,
-  left: 0,
-  width: "100%",
-  height: "100%",
-  background: "rgba(0,0,0,0.4)",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-};
-
-const popupStyle = {
-  background: "#fff",
-  padding: "20px",
-  borderRadius: "10px",
-  width: "300px",
-};

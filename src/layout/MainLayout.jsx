@@ -1,26 +1,41 @@
+import { useState } from "react";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import { Outlet } from "react-router-dom";
 
 export default function MainLayout() {
-  return (
-    <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
-      
-      {/* HEADER (FULL WIDTH) */}
-      <Header />
+  const [collapsed, setCollapsed] = useState(false);
 
-      {/* BELOW HEADER */}
-      <div style={{ flex: 1, display: "flex" }}>
+  const sidebarWidth = collapsed ? 70 : 220;
+
+  return (
+    <div style={{ display: "flex", height: "100vh" }}>
+      
+      {/* SIDEBAR (FULL HEIGHT LEFT) */}
+      <div
+        style={{
+          width: sidebarWidth,
+          borderRight: "1px solid #e5e7eb",
+          background: "#2b6cb0",
+          transition: "width 0.3s ease",
+        }}
+      >
+        <Sidebar collapsed={collapsed} />
+      </div>
+
+      {/* RIGHT SIDE */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
         
-        {/* SIDEBAR */}
+        {/* HEADER (STARTS AFTER SIDEBAR) */}
         <div
           style={{
-            width: "220px",
-            background: "#2b6cb0",
-            color: "#fff",
+            borderBottom: "1px solid #e5e7eb",
           }}
         >
-          <Sidebar />
+          <Header
+            onToggleSidebar={() => setCollapsed(!collapsed)}
+            collapsed={collapsed}
+          />
         </div>
 
         {/* CONTENT */}
@@ -29,6 +44,7 @@ export default function MainLayout() {
             flex: 1,
             padding: "20px",
             background: "#f5f7fa",
+            transition: "all 0.3s ease", 
           }}
         >
           <Outlet />

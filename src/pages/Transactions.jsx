@@ -1,228 +1,301 @@
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import {
+  Box,
+  Typography,
+  Card,
+  RadioGroup,
+  FormControlLabel,
+  Radio,
+  Select,
+  MenuItem,
+  TextField,
+  Button,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  TablePagination,
+  InputBase,
+} from "@mui/material";
+
+import { useApp } from "../context/AppContext";
+import { fetchReportData } from "../utility/utils";
 
 export default function Transactions() {
+  const { selectedVpa } = useApp();
+  const hasFetched = useRef(false);
+
   const [filter, setFilter] = useState("today");
-  const [month, setMonth] = useState("");
+  const [monthOption, setMonthOption] = useState("1"); 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
-  // 🔹 Dummy Data
-  const transactions = [
-    {
-      id: "TXN001",
-      vpa: "merchant1@cbin",
-      amount: "₹500",
-      date: "2026-04-12",
-      status: "SUCCESS",
-    },
-    {
-      id: "TXN002",
-      vpa: "merchant2@cbin",
-      amount: "₹1200",
-      date: "2026-04-11",
-      status: "FAILED",
-    },
-    {
-      id: "TXN003",
-      vpa: "merchant1@cbin",
-      amount: "₹800",
-      date: "2026-04-12",
-      status: "SUCCESS",
-    },
-  ];
+  const [data, setData] = useState([]);
+  const [search, setSearch] = useState("");
+
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
+
+  const fetchTransactions = async (type = "today", customStart, customEnd) => {
+    try {
+      if (!selectedVpa) return;
+
+      let result;
+
+      if (type === "today") {
+        result = await fetchReportData(selectedVpa, "today");
+      }
+
+      if (type === "month") {
+        const { start, end } = getMonthRange();
+
+        const payload = {
+          startDate: start,
+          endDate: end,
+          vpa_id: selectedVpa.vpa_id,
+          mode: "both",
+        };
+
+        const res = await fetchDirect(payload);
+        result = { raw: res };
+      }
+
+      if (type === "custom") {
+        const payload = {
+          startDate: customStart,
+          endDate: customEnd,
+          vpa_id: selectedVpa.vpa_id,
+          mode: "both",
+        };
+
+        const res = await fetchDirect(payload);
+        result = { raw: res };
+      }
+
+      setData(result?.raw || []);
+      setPage(0);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const fetchDirect = async (payload) => {
+    const apiRes = await fetch("/CBOI/reports/querysubmit_username", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    const json = await apiRes.json();
+    return json?.data || [];
+  };
+
+  useEffect(() => {
+    if (!selectedVpa || filter !== "today") return;
+    if (hasFetched.current) return;
+
+    hasFetched.current = true;
+    fetchTransactions("today");
+  }, [selectedVpa, filter]);
+
+  const getMonthRange = () => {
+    const now = new Date();
+    const end = now;
+    let start = new Date();
+
+    if (monthOption === "1") start.setMonth(now.getMonth() - 1);
+    if (monthOption === "3") start.setMonth(now.getMonth() - 3);
+    if (monthOption === "6") start.setMonth(now.getMonth() - 6);
+
+    return {
+      start: formatDate(start),
+      end: formatDate(end),
+    };
+  };
+
+  const formatDate = (d) => {
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const handleSubmit = () => {
+    if (filter === "month") {
+      fetchTransactions("month");
+    }
+
+    if (filter === "custom") {
+      if (!startDate || !endDate) return;
+
+      fetchTransactions(
+        "custom",
+        formatDate(new Date(startDate)),
+        formatDate(new Date(endDate)),
+      );
+    }
+  };
+
+  const filteredData = data.filter((item) =>
+    item.Transaction_Id?.toLowerCase().includes(search.toLowerCase()),
+  );
 
   return (
-    <div style={{ padding: "20px" }}>
-      
-      {/* HEADING */}
-      <h2 style={{ color: "#000", marginBottom: "20px" }}>
+    <Box p={3}>
+      <Typography variant="h6" mb={2}>
         Transaction Details
-      </h2>
+      </Typography>
 
-      {/* 🔹 FILTER SECTION */}
-      <div style={cardStyle}>
-        <h4 style={{ color: "#000" }}>Select a Report Filter</h4>
+      {/* FILTER */}
+      <Card sx={{ p: 3, mb: 3 }}>
+        <Typography mb={2}>Select a Report Filter</Typography>
 
-        {/* RADIO OPTIONS */}
-        <div style={{ marginTop: "10px" }}>
-          <label style={radioStyle}>
-            <input
-              type="radio"
-              value="today"
-              checked={filter === "today"}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-            Today
-          </label>
-
-          <label style={radioStyle}>
-            <input
-              type="radio"
-              value="month"
-              checked={filter === "month"}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-            Monthly
-          </label>
-
-          <label style={radioStyle}>
-            <input
-              type="radio"
-              value="custom"
-              checked={filter === "custom"}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-            Custom Range
-          </label>
-        </div>
-
-        {/* 🔹 CONDITIONAL UI */}
-        <div style={{ marginTop: "15px" }}>
-          {filter === "today" && (
-            <p style={{ color: "#000" }}>
-              Showing today's transactions
-            </p>
-          )}
-
-          {filter === "month" && (
-            <div style={{ display: "flex", gap: "10px" }}>
-              <select
-                value={month}
-                onChange={(e) => setMonth(e.target.value)}
-                style={inputStyle}
-              >
-                <option value="">Select Month</option>
-                <option>January</option>
-                <option>February</option>
-                <option>March</option>
-                <option>April</option>
-              </select>
-
-              <button style={btnStyle}>Submit</button>
-            </div>
-          )}
-
-          {filter === "custom" && (
-            <div style={{ display: "flex", gap: "10px" }}>
-              <input
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                style={inputStyle}
-              />
-              <input
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                style={inputStyle}
-              />
-
-              <button style={btnStyle}>Submit</button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* 🔹 TABLE SECTION */}
-      <div style={{ ...cardStyle, marginTop: "20px" }}>
-        
-        {/* TOP BAR */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: "15px",
+        <RadioGroup
+          row
+          value={filter}
+          onChange={(e) => {
+            setFilter(e.target.value);
+            hasFetched.current = false; 
           }}
         >
-          <input
-            placeholder="Search transactions..."
-            style={inputStyle}
-          />
+          <FormControlLabel value="today" control={<Radio />} label="Today" />
+          <FormControlLabel value="month" control={<Radio />} label="Monthly" />
+          <FormControlLabel value="custom" control={<Radio />} label="Custom" />
+        </RadioGroup>
 
-          <button style={btnStyle}>Download</button>
-        </div>
+        {/* MONTH */}
+        {filter === "month" && (
+          <Box mt={2} display="flex" alignItems="center">
+            <Select
+              value={monthOption}
+              onChange={(e) => setMonthOption(e.target.value)}
+              size="small"
+              sx={{
+                minWidth: 180, 
+                mr: 2, 
+              }}
+            >
+              <MenuItem value="1">Last 1 Month</MenuItem>
+              <MenuItem value="3">Last 3 Months</MenuItem>
+              <MenuItem value="6">Last 6 Months</MenuItem>
+            </Select>
+
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleSubmit}
+            >
+              Submit
+            </Button>
+          </Box>
+        )}
+
+        {/* CUSTOM */}
+        {filter === "custom" && (
+          <Box mt={2} display="flex" alignItems="center" gap={2}>
+            <TextField
+              type="date"
+              size="small"
+              onChange={(e) => setStartDate(e.target.value)}
+              sx={{
+                minWidth: 150,
+                paddingRight:"20px",
+                "& .MuiInputBase-root": {
+                  height: 30,
+                  fontSize: "13px",
+                },
+              }}
+            />
+
+            <TextField
+              type="date"
+              size="small"
+              onChange={(e) => setEndDate(e.target.value)}
+              sx={{
+                minWidth: 150,
+                paddingRight:"20px",
+                "& .MuiInputBase-root": {
+                  height: 30,
+                  fontSize: "13px",
+                },
+              }}
+            />
+
+            <Button
+              variant="contained"
+              size="small"
+              onClick={handleSubmit}
+              sx={{
+                height: 27, 
+                px: 2,
+              }}
+            >
+              Submit
+            </Button>
+          </Box>
+        )}
+      </Card>
+
+      {/* TABLE */}
+      <Card sx={{ p: 2 }}>
+        {/* SEARCH */}
+        <Box mb={2}>
+          <InputBase
+            placeholder="Search by Transaction ID"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            sx={{
+              border: "1px solid #ccc",
+              px: 1,
+              py: "3px",
+              borderRadius: 1,
+              width: 220,
+              fontSize: "13px", 
+            }}
+          />
+        </Box>
 
         {/* TABLE */}
-        <table style={tableStyle}>
-  <thead>
-    <tr>
-      <th style={thStyle}>ID</th>
-      <th style={thStyle}>VPA</th>
-      <th style={thStyle}>Amount</th>
-      <th style={thStyle}>Date</th>
-      <th style={thStyle}>Status</th>
-    </tr>
-  </thead>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Transaction ID</TableCell>
+              <TableCell>VPA</TableCell>
+              <TableCell>Amount</TableCell>
+              <TableCell>Date & Time</TableCell>
+            </TableRow>
+          </TableHead>
 
-  <tbody>
-    {transactions.map((txn, index) => (
-      <tr key={index}>
-        <td style={tdStyle}>{txn.id}</td>
-        <td style={tdStyle}>{txn.vpa}</td>
-        <td style={tdStyle}>{txn.amount}</td>
-        <td style={tdStyle}>{txn.date}</td>
-        <td
-          style={{
-            ...tdStyle,
-            color: txn.status === "SUCCESS" ? "green" : "red",
-          }}
-        >
-          {txn.status}
-        </td>
-      </tr>
-    ))}
-  </tbody>
-</table>  
-      </div>
-    </div>
+          <TableBody>
+            {filteredData
+              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+              .map((row, i) => (
+                <TableRow key={i}>
+                  <TableCell>{row.Transaction_Id}</TableCell>
+                  <TableCell>{row.VPA_ID}</TableCell>
+                  <TableCell>{row.Transaction_Amount}</TableCell>
+                  <TableCell>{row["Date_&_Time"]}</TableCell>
+                </TableRow>
+              ))}
+          </TableBody>
+        </Table>
+
+        {/* PAGINATION */}
+        <TablePagination
+          component="div"
+          count={filteredData.length}
+          page={page}
+          onPageChange={(e, newPage) => setPage(newPage)}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={(e) =>
+            setRowsPerPage(parseInt(e.target.value, 10))
+          }
+          rowsPerPageOptions={[5, 10, 20, 50]}
+        />
+      </Card>
+    </Box>
   );
 }
-
-const cardStyle = {
-  background: "#fff",
-  padding: "20px",
-  borderRadius: "10px",
-  boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-};
-
-const radioStyle = {
-  marginRight: "20px",
-  color: "#000",
-};
-
-const inputStyle = {
-  padding: "8px",
-  border: "1px solid #ccc",
-  borderRadius: "5px",
-  background: "#fff",
-  color: "#000",
-};
-
-const btnStyle = {
-  padding: "8px 12px",
-  background: "#2b6cb0",
-  color: "#fff",
-  border: "none",
-  borderRadius: "5px",
-  cursor: "pointer",
-};
-
-const tableStyle = {
-  width: "100%",
-  borderCollapse: "collapse",
-};
-
-const thStyle = {
-  textAlign: "left",
-  padding: "10px",
-  borderBottom: "2px solid #ddd",
-  color: "#000",
-  fontWeight: "600",
-};
-
-const tdStyle = {
-  textAlign: "left",
-  padding: "10px",
-  borderBottom: "1px solid #eee",
-  color: "#000",
-};

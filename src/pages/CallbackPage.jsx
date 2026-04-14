@@ -1,11 +1,10 @@
-// CallbackPage.jsx
 import React, { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { signinCallback } from "../services/authService";
 
 const CallbackPage = () => {
   const navigate = useNavigate();
-  const called = useRef(false); // ← prevents double-call in React StrictMode
+  const called = useRef(false);  
 
   useEffect(() => {
     if (called.current) return;
