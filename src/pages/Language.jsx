@@ -1,24 +1,102 @@
-import { useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { Box, Typography, Card, Grid, TextField, MenuItem, Button } from "@mui/material";
+
+import { useApp } from "../context/AppContext";
+import { apiService } from "../services/serviceApi";
+import { useSnackbar } from "notistack";
 
 export default function Language() {
-  const [vpaId] = useState("merchant1@cbin");
-  const [serialNumber] = useState("456954659876857");
-  const [currentLanguage] = useState("ENGLISH");
+  const hasFetched = useRef(false);
+  const isUpdating = useRef(false);
+  const { selectedVpa } = useApp();
+  const { enqueueSnackbar } = useSnackbar();
+
+  const [languages, setLanguages] = useState([]);
+  const [currentLanguage, setCurrentLanguage] = useState("");
   const [selectedLanguage, setSelectedLanguage] = useState("");
 
-  const [showToast, setShowToast] = useState(false);
+  const tid = selectedVpa?.serial_number;
 
-  const handleUpdate = () => {
-    if (!selectedLanguage) {
-      alert("Please select a language");
-      return;
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        if (!tid || hasFetched.current) return;
+
+        hasFetched.current = true; 
+
+        const currentRes = await apiService.fetchCurrentLanguage(tid);
+
+        if (currentRes?.result === "success") {
+          setCurrentLanguage(currentRes.data);
+        } else {
+          enqueueSnackbar(
+            currentRes?.message || "Failed to fetch current language",
+            { variant: "error" },
+          );
+        }
+
+        const langRes = await apiService.fetchLanguages();
+
+        if (langRes?.result === "success") {
+          setLanguages(langRes.data || []);
+        } else {
+          enqueueSnackbar("Failed to fetch languages", {
+            variant: "error",
+          });
+        }
+      } catch (err) {
+        console.error(err);
+        enqueueSnackbar("Something went wrong", { variant: "error" });
+      }
+    };
+
+    loadData();
+  }, [tid]);
+
+  const handleUpdate = async () => {
+    try {
+      if (isUpdating.current) return; 
+
+      if (!selectedLanguage) {
+        enqueueSnackbar("Please select a language", {
+          variant: "warning",
+        });
+        return;
+      }
+
+      isUpdating.current = true; 
+
+      const payload = {
+        tid,
+        update_language: selectedLanguage,
+      };
+
+      const res = await apiService.updateLanguage(payload);
+
+      if (res?.responseCode === "01") {
+        enqueueSnackbar(
+          "Request successfully initiated, check after sometime",
+          { variant: "warning" },
+        );
+      }
+      else if (res?.responseCode === "00") {
+        enqueueSnackbar("Language updated successfully", {
+          variant: "success",
+        });
+        setCurrentLanguage(selectedLanguage);
+        setSelectedLanguage("");
+      }
+      else if (res?.responseCode === "02") {
+        enqueueSnackbar( res?.message || "Update failed", {
+          variant: "error",
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      enqueueSnackbar("Something went wrong", { variant: "error" });
+    } finally {
+      isUpdating.current = false; 
     }
-
-    setShowToast(true);
-
-    setTimeout(() => {
-      setShowToast(false);
-    }, 3000);
   };
 
   const handleCancel = () => {
@@ -26,147 +104,128 @@ export default function Language() {
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      
+    <Box p={3}>
       {/* HEADING */}
-      <h2 style={{ color: "#000", marginBottom: "20px" }}>
+      <Typography variant="h6" mb={2}>
         Language Update
-      </h2>
+      </Typography>
 
-      {/* 🔹 FORM SECTION */}
-      <div style={cardStyle}>
-        <div style={gridStyle}>
-          
+      <Card
+        sx={{
+          p: 3,
+          maxWidth: 600,
+        }}
+      >
+        <Box display="flex" flexDirection="column">
           {/* VPA ID */}
-          <div style={{ width: "100%" }}>
-            <label style={labelStyle}>VPA ID</label>
-            <input value={vpaId} disabled style={inputStyle} />
-          </div>
+          <Box>
+            <Typography fontSize="13px" sx={{ marginBottom: "4px" }}>
+              VPA ID
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              value={selectedVpa?.vpa_id || ""}
+              disabled
+              sx={{ minWidth: "500px" }}
+            />
+          </Box>
 
           {/* SERIAL NUMBER */}
-          <div style={{ width: "100%" }}>
-            <label style={labelStyle}>Device Serial Number</label>
-            <input value={serialNumber} disabled style={inputStyle} />
-          </div>
+          <Box>
+            <Typography
+              fontSize="13px"
+              sx={{ marginTop: "8px", marginBottom: "4px" }}
+            >
+              Device Serial Number
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              value={selectedVpa?.serial_number || ""}
+              disabled
+              sx={{ minWidth: "500px" }}
+            />
+          </Box>
 
           {/* CURRENT LANGUAGE */}
-          <div style={{ width: "100%" }}>
-            <label style={labelStyle}>Current Language</label>
-            <input value={currentLanguage} disabled style={inputStyle} />
-          </div>
+          <Box>
+            <Typography
+              fontSize="13px"
+              sx={{ marginTop: "8px", marginBottom: "4px" }}
+            >
+              Current Language
+            </Typography>
+            <TextField
+              fullWidth
+              size="small"
+              value={currentLanguage || ""}
+              disabled
+              sx={{ minWidth: "500px" }}
+            />
+          </Box>
 
           {/* LANGUAGE UPDATE */}
-          <div style={{ width: "100%" }}>
-            <label style={labelStyle}>Language Update</label>
-            <select
+          <Box>
+            <Typography
+              fontSize="13px"
+              sx={{ marginTop: "8px", marginBottom: "4px" }}
+            >
+              Language Update
+            </Typography>
+            <TextField
+              select
+              fullWidth
+              size="small"
               value={selectedLanguage}
               onChange={(e) => setSelectedLanguage(e.target.value)}
-              style={inputStyle}
+              sx={{ minWidth: "500px" }}
             >
-              <option value="">Select Language</option>
-              <option>Punjabi</option>
-              <option>Hindi</option>
-              <option>Odia</option>
-              <option>Tamil</option>
-              <option>Assamese</option>
-              <option>English</option>
-              <option>Kannada</option>
-              <option>Malayalam</option>
-              <option>Bengali</option>
-              <option>Telugu</option>
-              <option>Marathi</option>
-              <option>Gujarati</option>
-            </select>
-          </div>
-        </div>
+              <MenuItem value="">Select Language</MenuItem>
+
+              {languages.map((lang, i) => (
+                <MenuItem key={i} value={lang}>
+                  {lang}
+                </MenuItem>
+              ))}
+            </TextField>
+          </Box>
+        </Box>
 
         {/* BUTTONS */}
-        <div style={btnContainer}>
-          <button style={cancelBtn} onClick={handleCancel}>
+        <Box
+          sx={{
+            marginTop: "16px",
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: "16px",
+          }}
+        >
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={handleCancel}
+            sx={{
+              textTransform: "none",
+              px: 2,
+            }}
+          >
             Cancel
-          </button>
+          </Button>
 
-          <button style={updateBtn} onClick={handleUpdate}>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={handleUpdate}
+            sx={{
+              textTransform: "none",
+              px: 2,
+            }}
+          >
             Update
-          </button>
-        </div>
-      </div>
-
-      {/* 🔹 TOAST */}
-      {showToast && (
-        <div style={toastStyle}>
-          Language update initiated successfully
-        </div>
-      )}
-    </div>
+          </Button>
+        </Box>
+      </Card>
+    </Box>
   );
 }
-
-/* 🔹 STYLES */
-
-const cardStyle = {
-  background: "#fff",
-  padding: "20px",
-  borderRadius: "10px",
-  boxShadow: "0 5px 15px rgba(0,0,0,0.1)",
-};
-
-const gridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(2, minmax(0, 1fr))", 
-  columnGap: "20px",
-  rowGap: "25px",
-};
-
-const labelStyle = {
-  display: "block",
-  marginBottom: "8px",
-  color: "#000",
-  fontSize: "14px",
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "12px",
-  border: "1px solid #ccc",
-  borderRadius: "5px",
-  background: "#fff",
-  color: "#000",
-  boxSizing: "border-box",  
-};
-
-const btnContainer = {
-  marginTop: "20px",
-  display: "flex",
-  justifyContent: "flex-end",
-  gap: "10px",
-};
-
-const cancelBtn = {
-  padding: "8px 14px",
-  background: "#fff",
-  border: "1px solid #ccc",
-  borderRadius: "5px",
-  cursor: "pointer",
-  color:"#000"
-};
-
-const updateBtn = {
-  padding: "8px 14px",
-  background: "#2b6cb0",
-  color: "#fff",
-  border: "none",
-  borderRadius: "5px",
-  cursor: "pointer",
-};
-
-const toastStyle = {
-  position: "fixed",
-  bottom: "20px",
-  right: "20px",
-  background: "#2b6cb0",
-  color: "#fff",
-  padding: "10px 15px",
-  borderRadius: "6px",
-  boxShadow: "0 5px 15px rgba(0,0,0,0.2)",
-};

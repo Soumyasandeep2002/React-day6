@@ -10,7 +10,7 @@ import SyncAltIcon from "@mui/icons-material/SyncAlt";
 import LocalAtmIcon from "@mui/icons-material/LocalAtm";
 import { getFormattedDate, fetchReportData } from "../utility/utils";
 
-import {useApp} from "../context/AppContext";
+import { useApp } from "../context/AppContext";
 
 export default function Dashboard() {
   const [vpaList, setVpaList] = useState([]);
@@ -19,7 +19,7 @@ export default function Dashboard() {
   const [tempSelection, setTempSelection] = useState(null);
   const [dateFilter, setDateFilter] = useState("today");
 
-  const { selectedVpa, setSelectedVpa, reportData, setReportData } = useApp();
+  const { selectedVpa, setSelectedVpa, reportData, setReportData, setReportList } = useApp();
 
   const hasFetched = useRef(false);
 
@@ -63,6 +63,8 @@ export default function Dashboard() {
       amount: data.amount,
     });
 
+    setReportList(data.raw);
+
     setSelectedVpa(tempSelection);
     setOpenDialog(false);
 
@@ -78,6 +80,8 @@ export default function Dashboard() {
           count: data.count,
           amount: data.amount,
         });
+
+        setReportList(data.raw); 
       }
     };
 
@@ -154,12 +158,7 @@ export default function Dashboard() {
       {/* KPI */}
       <Box sx={{ marginTop: 3 }}>
         {selectedVpa && (
-          <Grid
-            container
-            spacing={3}
-            mt={8}
-            columnSpacing={12} 
-          >
+          <Grid container spacing={3} mt={8} columnSpacing={12}>
             {/* TRANSACTIONS */}
             <Grid
               item

@@ -10,6 +10,8 @@ export const AppProvider = ({ children }) => {
     amount: 0,
   });
 
+  const [reportList, setReportList] = useState([]);
+
   return (
     <AppContext.Provider
       value={{
@@ -17,6 +19,8 @@ export const AppProvider = ({ children }) => {
         setSelectedVpa,
         reportData,
         setReportData,
+        reportList,        
+        setReportList,     
       }}
     >
       {children}

@@ -3,7 +3,7 @@ import { userManager } from "./authService";
 
 const AUTH_BASE = "/auth-proxy";
 const ENCR_BASE = "/encr-proxy";
-const SERVICES_BASE = "https://services-cboi-uat.isupay.in/"
+const SERVICES_BASE = "https://services-cboi-uat.isupay.in/";
 
 const ENCR_KEY = "82gbZpEWVzTcL5qXB+kSKCes7XbqdNxqKjQeDgdnJX0=";
 const PASS_KEY = "c0CKRG7yNFY3OIxY92izqj0YeMk6JPqdOlGgqsv3mhicXmAv";
@@ -61,7 +61,98 @@ export const apiService = {
 
     return decrypted;
   },
+
   fetchReport: (payload) => {
     return apiServices.post("/CBOI/reports/querysubmit_username", payload);
+  },
+
+  qrToBase64: async (qrString) => {
+    try {
+      const encrypted = await encryptData({
+        qrString,
+      });
+
+      const res = await apiAuth.post("/CBOI/merchant/qr_convert_to_base64", {
+        RequestData: encrypted,
+      });
+
+      const cipher = res.data?.data || res.data?.Data || res.data?.ResponseData;
+
+      const decrypted = await decryptData(cipher);
+
+      return decrypted;
+    } catch (err) {
+      console.error("QR API error:", err);
+      throw err;
+    }
+  },
+
+  getDynamicQR: async ({ txnAmount, serialNo, vpa_id }) => {
+    try {
+      const res = await apiServices.post("/CBOI/merchant/get-qr-string", {
+        txnAmount,
+        serialNo,
+        vpa_id,
+      });
+
+      return res.data;
+    } catch (err) {
+      console.error("Dynamic QR API error:", err);
+      throw err;
+    }
+  },
+
+  fetchLanguages: async () => {
+    try {
+      const res = await apiAuth.get("/CBOI/isu_soundbox/lang/fetch_language");
+
+      const cipher = res.data?.data || res.data?.Data || res.data?.ResponseData;
+
+      const decrypted = await decryptData(cipher);
+
+      return decrypted;
+    } catch (err) {
+      console.error("Fetch Languages error:", err);
+      throw err;
+    }
+  },
+
+  fetchCurrentLanguage: async (tid) => {
+    try {
+      const res = await apiAuth.get(
+        `/CBOI/isu_soundbox/user_api/current_language/${tid}`,
+      );
+
+      const cipher = res.data?.data || res.data?.Data || res.data?.ResponseData;
+
+      const decrypted = await decryptData(cipher);
+
+      return decrypted;
+    } catch (err) {
+      console.error("Fetch Current Language error:", err);
+      throw err;
+    }
+  },
+
+  updateLanguage: async (payload) => {
+    try {
+      const encrypted = await encryptData(payload);
+
+      const res = await apiAuth.post(
+        "/CBOI/isu_soundbox/lang/update_language",
+        {
+          RequestData: encrypted,
+        },
+      );
+
+      const cipher = res.data?.data || res.data?.Data || res.data?.ResponseData;
+
+      const decrypted = await decryptData(cipher);
+
+      return decrypted;
+    } catch (err) {
+      console.error("Update Language error:", err);
+      throw err;
+    }
   },
 };

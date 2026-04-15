@@ -89,8 +89,16 @@ export default function Transactions() {
       body: JSON.stringify(payload),
     });
 
-    const json = await apiRes.json();
-    return json?.data || [];
+    const text = await apiRes.text();
+    if (!text) return [];
+
+    try {
+      const json = JSON.parse(text);
+      return json?.data || [];
+    } catch (err) {
+      console.error("JSON parse error:", err);
+      return [];
+    }
   };
 
   useEffect(() => {
@@ -270,16 +278,26 @@ export default function Transactions() {
           </TableHead>
 
           <TableBody>
-            {filteredData
-              .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-              .map((row, i) => (
-                <TableRow key={i}>
-                  <TableCell>{row.Transaction_Id}</TableCell>
-                  <TableCell>{row.VPA_ID}</TableCell>
-                  <TableCell>{row.Transaction_Amount}</TableCell>
-                  <TableCell>{row["Date_&_Time"]}</TableCell>
-                </TableRow>
-              ))}
+            {filteredData.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={4} align="center">
+                  <Typography sx={{ fontSize: "13px", color: "#888", py: 2 }}>
+                    No data available
+                  </Typography>
+                </TableCell>
+              </TableRow>
+            ) : (
+              filteredData
+                .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+                .map((row, i) => (
+                  <TableRow key={i}>
+                    <TableCell>{row.Transaction_Id}</TableCell>
+                    <TableCell>{row.VPA_ID}</TableCell>
+                    <TableCell>{row.Transaction_Amount}</TableCell>
+                    <TableCell>{row["Date_&_Time"]}</TableCell>
+                  </TableRow>
+                ))
+            )}
           </TableBody>
         </Table>
 

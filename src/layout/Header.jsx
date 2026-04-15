@@ -14,7 +14,6 @@ export default function Header({ onToggleSidebar, collapsed }) {
     loadUser();
   }, []);
   const userInitial = user?.given_name?.charAt(0)?.toUpperCase()
-  console.log("User in header:", user);
   return (
     <div style={headerStyle}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
