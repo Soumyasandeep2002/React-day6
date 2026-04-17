@@ -34,7 +34,7 @@ async function encryptData(data) {
   return res.data?.RequestData;
 }
 
-async function decryptData(cipher) {
+export async function decryptData(cipher) {
   const res = await apiEncr.post(
     "/decr",
     { req: cipher },
@@ -43,6 +43,21 @@ async function decryptData(cipher) {
 
   return res.data;
 }
+
+const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+
+    reader.onload = () => {
+      // remove metadata like "data:application/pdf;base64,"
+      const base64 = reader.result.split(",")[1];
+      resolve(base64);
+    };
+
+    reader.onerror = (error) => reject(error);
+  });
+};
 
 export const apiService = {
   fetchUserById: async (params) => {
@@ -225,4 +240,98 @@ export const apiService = {
       throw err;
     }
   },
+
+  fetchZendeskForm: async () => {
+    try {
+      const payload = {
+        index: "zendesk_form",
+        type: "em",
+        query: {
+          query: {
+            nested: {
+              path: "forms",
+              query: {
+                bool: {
+                  must: [
+                    {
+                      match: {
+                        "forms.id": 47501075391257,
+                      },
+                    },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      };
+
+      const res = await axios.post(
+        "https://services.txninfra.com/isu/elastic/fetch",
+        payload,
+      );
+
+      return res.data;
+    } catch (err) {
+      console.error("Fetch Zendesk Form error:", err);
+      throw err;
+    }
+  },
+
+  uploadFiles: async (files) => {
+  try {
+    // 🔥 convert all files to base64 here
+    const filesWithBase64 = await Promise.all(
+      files.map(async (f) => ({
+        base64string: await fileToBase64(f.file), // 👈 convert here
+        filename: f.filename,
+      }))
+    );
+
+    const payload = {
+      files: filesWithBase64,
+    };
+
+    const encrypted = await encryptData(payload);
+
+    const res = await apiAuth.post(
+      "/CBOI/zendesk/v2/uploadFile",
+      {
+        RequestData: encrypted,
+      }
+    );
+
+    const cipher =
+      res.data?.data || res.data?.Data || res.data?.ResponseData;
+
+    const decrypted = await decryptData(cipher);
+
+    return decrypted;
+  } catch (err) {
+    console.error("Upload File error:", err);
+    throw err;
+  }
+},
+createTicket: async (payload) => {
+  try {
+    const encrypted = await encryptData(payload);
+
+    const res = await apiAuth.post(
+      "/CBOI/zendesk/v2/createTicket",
+      {
+        RequestData: encrypted,
+      }
+    );
+
+    const cipher =
+      res.data?.data || res.data?.Data || res.data?.ResponseData;
+
+    const decrypted = await decryptData(cipher);
+
+    return decrypted;
+  } catch (err) {
+    console.error("Create Ticket error:", err);
+    throw err;
+  }
+},
 };

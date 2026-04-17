@@ -1,229 +1,348 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CallIcon from "@mui/icons-material/Call";
 import EmailIcon from "@mui/icons-material/Email";
+import PictureAsPdfIcon from "@mui/icons-material/PictureAsPdf";
+import CloseIcon from "@mui/icons-material/Close";
+
+import { apiService } from "../services/serviceApi";
+import { Button, Grid } from "@mui/material";
 
 export default function RaiseTicket() {
   const navigate = useNavigate();
+  const hasFetched = useRef(false);
 
   const [form, setForm] = useState({
     subject: "",
     description: "",
-    vpa: "",
     issueType: "",
     subType: "",
-    phone: "",
-    callType: "",
-    file: null,
   });
 
+  const [files, setFiles] = useState([]);
   const [errors, setErrors] = useState({});
+  const [issueTypes, setIssueTypes] = useState([]);
+  const [subTypes, setSubTypes] = useState([]);
+
+  const [showPopup, setShowPopup] = useState(false);
+  const [ticketId, setTicketId] = useState("");
+
+  const [pageLoading, setPageLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  useEffect(() => {
+    if (hasFetched.current) return;
+    hasFetched.current = true;
+
+    fetchDropdownData();
+  }, []);
+
+  const fetchDropdownData = async () => {
+    setPageLoading(true);
+    try {
+      const res = await apiService.fetchZendeskForm();
+
+      const forms =
+        res?.data?.hits?.[0]?._source?.forms?.[0]?.ticket_fields || [];
+
+      const issueTypeField = forms.find((f) => f.title === "Issue Type");
+      const subTypeField = forms.find((f) => f.title === "Issue Sub-type");
+
+      setIssueTypes(
+        issueTypeField?.custom_field_options?.map((o) => o.name) || [],
+      );
+
+      setSubTypes(subTypeField?.custom_field_options?.map((o) => o.name) || []);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setPageLoading(false);
+    }
+  };
+
+  const toBase64 = (file) =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = reject;
+    });
+
+  const handleFileUpload = async (e) => {
+    const selectedFiles = Array.from(e.target.files);
+
+    setUploading(true);
+
+    try {
+      const res = await apiService.uploadFiles(
+        selectedFiles.map((file) => ({
+          file,
+          filename: file.name,
+        })),
+      );
+
+      const uploaded = res?.data?.files || [];
+
+      const formattedFiles = uploaded.map((f, index) => ({
+        filename: f.filename,
+        size: selectedFiles[index]?.size,
+        url: f.url,
+      }));
+
+      setFiles((prev) => [...prev, ...formattedFiles]);
+
+      e.target.value = "";
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeFile = (index) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
   const handleChange = (field, value) => {
     setForm({ ...form, [field]: value });
     setErrors({ ...errors, [field]: "" });
   };
 
-  const validateField = (field, value) => {
-  let error = "";
+  const validate = () => {
+    let newErrors = {};
 
-  if (field !== "file" && !value) error = "Required"; 
+    ["subject", "description", "issueType", "subType"].forEach((key) => {
+      if (!form[key]) newErrors[key] = "Required";
+    });
 
-  if (field === "description" && value) {
-    if (value.split(" ").length > 300) {
-      error = "Max 300 words";
+    if (form.description.split(" ").length > 300) {
+      newErrors.description = "Max 300 words";
     }
-  }
 
-  setErrors((prev) => ({ ...prev, [field]: error }));
-};
- const validate = () => {
-  let newErrors = {};
-
-  Object.keys(form).forEach((key) => {
-    if (key !== "file" && !form[key]) { 
-      newErrors[key] = "Required";
-    }
-  });
-
-  if (form.description && form.description.split(" ").length > 300) {
-    newErrors.description = "Max 300 words";
-  }
-
-  setErrors(newErrors);
-  return Object.keys(newErrors).length === 0;
-};
-
-  const handleSubmit = () => {
-    if (!validate()) return;
-    alert("Ticket Submitted Successfully");
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
-  const handleCancel = () => navigate(-1);
+  const handleSubmit = async () => {
+    if (!validate()) return;
 
+    setSubmitting(true);
+
+    try {
+      const payload = {
+        subject: form.subject,
+        body: form.description,
+        ticket_form_id: 47501075391257,
+        attachmentName: files.map((f) => f.filename),
+        attachmentURL: files.map((f) => f.url),
+        custom_fields: [
+          { id: 900013325983, value: form.subject },
+          { id: 32240028334873, value: form.issueType },
+          { id: 32240169914009, value: form.subType },
+          { id: 900013326003, value: form.description },
+        ],
+      };
+
+      const res = await apiService.createTicket(payload);
+
+      const ticketId = res?.ticket_id || res?.id || res?.data?.ticket_id;
+
+      setTicketId(ticketId);
+      setShowPopup(true);
+
+      setForm({
+        subject: "",
+        description: "",
+        issueType: "",
+        subType: "",
+      });
+
+      setFiles([]);
+      setErrors({});
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCancel = async () => {
+    setCancelling(true);
+
+    setTimeout(() => {
+      setForm({
+        subject: "",
+        description: "",
+        issueType: "",
+        subType: "",
+      });
+
+      setFiles([]);
+      setErrors({});
+
+      setCancelling(false);
+    }, 300); // small delay for UX
+  };
+  
   return (
     <div style={{ height: "100%", background: "#f5f7fa" }}>
-      
-      {/* HEADER */}
       <div style={headerStyle}>
-        <ArrowBackIcon
-          style={{ cursor: "pointer" }}
-          onClick={() => navigate(-1)}
-        />
+        <ArrowBackIcon onClick={() => navigate(-1)} />
 
         <div style={{ display: "flex", gap: "20px" }}>
           <span style={supportItem}>
-            <CallIcon style={{ fontSize: "18px" }} /> 9124573230
+            <CallIcon fontSize="small" /> 9124573230
           </span>
           <span style={supportItem}>
-            <EmailIcon style={{ fontSize: "18px" }} /> support@iserveu.in
+            <EmailIcon fontSize="small" /> support@iserveu.in
           </span>
         </div>
       </div>
 
-      {/* FORM */}
       <div style={cardStyle}>
-        <h2 style={{ color: "#000", fontWeight: "bold" }}>
-          Raise a Ticket
-        </h2>
+        <h2>Raise a Ticket</h2>
 
-        <div style={gridStyle}>
-          
-          <Field label="Subject" error={errors.subject}>
-            <input
-              placeholder="Enter subject"
-              value={form.subject}
-              onChange={(e) => handleChange("subject", e.target.value)}
-              onBlur={(e) => validateField("subject", e.target.value)}
-              style={inputStyle}
-            />
-          </Field>
+        <Field label="Issue Type" error={errors.issueType}>
+          <select
+            value={form.issueType}
+            onChange={(e) => handleChange("issueType", e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">Select issue type</option>
+            {issueTypes.map((item, i) => (
+              <option key={i}>{item}</option>
+            ))}
+          </select>
+        </Field>
 
-          <Field label="VPA ID" error={errors.vpa}>
-            <input
-              placeholder="Enter VPA ID"
-              value={form.vpa}
-              onChange={(e) => handleChange("vpa", e.target.value)}
-              onBlur={(e) => validateField("vpa", e.target.value)}
-              style={inputStyle}
-            />
-          </Field>
+        <Field label="Issue Sub Type" error={errors.subType}>
+          <select
+            value={form.subType}
+            onChange={(e) => handleChange("subType", e.target.value)}
+            style={inputStyle}
+          >
+            <option value="">Select issue sub type</option>
+            {subTypes.map((item, i) => (
+              <option key={i}>{item}</option>
+            ))}
+          </select>
+        </Field>
 
-          <Field label="Issue Type" error={errors.issueType}>
-            <select
-              value={form.issueType}
-              onChange={(e) => handleChange("issueType", e.target.value)}
-              onBlur={(e) => validateField("issueType", e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">Select issue type</option>
-            </select>
-          </Field>
+        <Field label="Subject" error={errors.subject}>
+          <input
+            value={form.subject}
+            onChange={(e) => handleChange("subject", e.target.value)}
+            style={inputStyle}
+          />
+        </Field>
 
-          <Field label="Issue Sub Type" error={errors.subType}>
-            <select
-              value={form.subType}
-              onChange={(e) => handleChange("subType", e.target.value)}
-              onBlur={(e) => validateField("subType", e.target.value)}
-              style={inputStyle}
-            >
-              <option value="">Select issue sub type</option>
-            </select>
-          </Field>
+        <Field label="Description" error={errors.description}>
+          <textarea
+            value={form.description}
+            onChange={(e) => handleChange("description", e.target.value)}
+            style={{ ...inputStyle, height: "100px" }}
+          />
+        </Field>
 
-          <Field label="Phone Number" error={errors.phone}>
-            <input
-              placeholder="Enter phone number"
-              value={form.phone}
-              onChange={(e) => handleChange("phone", e.target.value)}
-              onBlur={(e) => validateField("phone", e.target.value)}
-              style={inputStyle}
-            />
-          </Field>
+        <div style={{ fontSize: "12px" }}>Describe within 300 words</div>
 
-          <Field label="Call Type" error={errors.callType}>
-            <input
-              placeholder="Enter call type"
-              value={form.callType}
-              onChange={(e) => handleChange("callType", e.target.value)}
-              onBlur={(e) => validateField("callType", e.target.value)}
-              style={inputStyle}
-            />
-          </Field>
-        </div>
-
-        {/* DESCRIPTION */}
-        <div style={{ marginTop: "20px" }}>
-          <label style={labelStyle}>
-            Description <span style={{ color: "red" }}>*</span>
-          </label>
-
-          <div style={{ display: "flex", gap: "10px" }}>
-            <textarea
-              placeholder="Any additional details"
-              value={form.description}
-              onChange={(e) => handleChange("description", e.target.value)}
-              onBlur={(e) => validateField("description", e.target.value)}
-              style={{ ...inputStyle, height: "100px" }}
-            />
-            {errors.description && (
-              <div style={errorSideStyle}>{errors.description}</div>
-            )}
-          </div>
-
-          <div style={{ fontSize: "12px", color: "#888" }}>
-            Describe your issue within 300 words
-          </div>
-        </div>
-
-        {/* ATTACHMENT */}
-        <div style={{ marginTop: "20px" }}>
-          <label style={labelStyle}>
-            Attachment 
-          </label>
-
-          <div style={{ display: "flex", gap: "10px" }}>
+        {/* FILE UPLOAD */}
+        <Field label="Attachment">
+          <label style={uploadBtn}>
+            Upload Files
             <input
               type="file"
-              onChange={(e) => handleChange("file", e.target.files[0])}
-              onBlur={(e) => validateField("file", e.target.files[0])}
+              multiple
+              onChange={handleFileUpload}
+              style={{ display: "none" }} 
             />
-            {errors.file && (
-              <div style={errorSideStyle}>{errors.file}</div>
-            )}
+          </label>
+        </Field>
+
+        {files.map((file, index) => (
+          <div key={index} style={fileRow}>
+            <div style={fileLeft}>
+              <PictureAsPdfIcon style={{ fontSize: "14px" }} />
+              <span>{file.filename}</span>
+            </div>
+
+            <div style={fileRight}>
+              <span>{(file.size / 1024).toFixed(1)} KB</span>
+              <CloseIcon
+                style={{ fontSize: "14px", cursor: "pointer" }}
+                onClick={() => removeFile(index)}
+              />
+            </div>
+          </div>
+        ))}
+
+        <Grid
+          item
+          xs={12}
+          sx={{
+            display: "flex",
+            justifyContent: "flex-end",
+            alignItems: "center",
+            width: "100%",
+          }}
+        >
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={handleCancel}
+            disabled={cancelling || submitting}
+          >
+            {cancelling ? "Cancelling..." : "Cancel"}
+          </Button>
+
+          <Button
+            variant="contained"
+            color="primary"
+            onClick={handleSubmit}
+            disabled={submitting || uploading}
+            sx={{ marginLeft: "9px" }}
+          >
+            {submitting ? "Submitting..." : "Submit"}
+          </Button>
+        </Grid>
+      </div>
+
+      {showPopup && (
+        <div style={popupOverlay}>
+          <div style={popupBox}>
+            <h3>Ticket Created Successfully!</h3>
+            <p>
+              You can check its status with the ticket ID:
+              <b> {ticketId}</b>
+            </p>
+
+            <button onClick={() => setShowPopup(false)}>Close</button>
           </div>
         </div>
-
-        {/* BUTTONS */}
-        <div style={btnContainer}>
-          <button style={cancelBtn} onClick={handleCancel}>
-            Cancel
-          </button>
-          <button style={submitBtn} onClick={handleSubmit}>
-            Submit
-          </button>
+      )}
+      {pageLoading && (
+        <div style={loaderOverlay}>
+          <div>Loading...</div>
         </div>
-      </div>
+      )}
+      {uploading && <div style={{ fontSize: "12px" }}>Uploading files...</div>}
     </div>
   );
 }
 
-/* 🔹 FIELD */
 const Field = ({ label, children, error }) => (
-  <div style={{ width: "100%" }}>
-    <label style={labelStyle}>
-      {label} <span style={{ color: "red" }}>*</span>
+  <div style={{ marginBottom: "12px" }}>
+    <label>
+      {label}
+      <span style={{ color: "#FF0000" }}>*</span>
     </label>
-
-    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-      <div style={{ flex: 1 }}>{children}</div>
-      {error && <div style={errorSideStyle}>{error}</div>}
-    </div>
+    {children}
+    {error && <div style={{ color: "red", fontSize: "10px" }}>{error}</div>}
   </div>
 );
-
-/* 🔹 STYLES */
 
 const headerStyle = {
   height: "60px",
@@ -232,14 +351,12 @@ const headerStyle = {
   justifyContent: "space-between",
   alignItems: "center",
   padding: "0 20px",
-  borderBottom: "1px solid #eee",
 };
 
 const supportItem = {
   display: "flex",
-  alignItems: "center",
   gap: "5px",
-  fontSize: "14px",
+  fontSize: "12px",
 };
 
 const cardStyle = {
@@ -247,58 +364,79 @@ const cardStyle = {
   margin: "20px",
   padding: "20px",
   borderRadius: "10px",
-};
-
-const gridStyle = {
-  display: "grid",
-  gridTemplateColumns: "1fr 1fr",
-  gap: "20px",
-  marginTop: "20px",
-};
-
-const labelStyle = {
-  display: "block",
-  marginBottom: "5px",
-  color: "#000",
+  width: "100%",
+  maxWidth: "100%",
 };
 
 const inputStyle = {
   width: "100%",
-  padding: "10px",
+  padding: "8px",
   border: "1px solid #ccc",
-  borderRadius: "5px",
-  background: "#fff",
-  color: "#000",
-  boxSizing: "border-box",
 };
 
-const errorSideStyle = {
-  color: "red",
-  fontSize: "12px",
-  whiteSpace: "nowrap",
-};
-
-const btnContainer = {
+const fileRow = {
   display: "flex",
-  justifyContent: "flex-end",
-  gap: "10px",
-  marginTop: "20px",
+  justifyContent: "space-between",
+  alignItems: "center",
+  fontSize: "8px",
+  marginTop: "5px",
+  borderBottom: "1px solid #eee",
+  padding: "4px 0",
 };
 
-const cancelBtn = {
-  padding: "8px 14px",
-  border: "1px solid #ccc",
-  background: "#fff",
-  borderRadius: "5px",
-  cursor: "pointer",
-  color:"#000"
+const fileLeft = {
+  display: "flex",
+  alignItems: "center",
+  gap: "5px",
 };
 
-const submitBtn = {
-  padding: "8px 14px",
+const fileRight = {
+  display: "flex",
+  alignItems: "center",
+  gap: "8px",
+};
+
+const uploadBtn = {
+  display: "inline-block",
+  marginLeft: "10px",
+  padding: "6px",
   background: "#2b6cb0",
   color: "#fff",
-  border: "none",
-  borderRadius: "5px",
+  borderRadius: "4px",
   cursor: "pointer",
+  fontSize: "12px",
+};
+
+const popupOverlay = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  background: "rgba(0,0,0,0.4)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+};
+
+const popupBox = {
+  background: "#fff",
+  padding: "20px",
+  borderRadius: "10px",
+  textAlign: "center",
+};
+
+const loaderOverlay = {
+  position: "fixed",
+  top: 0,
+  left: 0,
+  right: 0,
+  bottom: 0,
+  background: "rgba(255,255,255,0.6)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  zIndex: 999,
+  fontSize: "18px",
+  fontWeight: "bold",
 };
