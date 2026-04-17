@@ -10,7 +10,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 
 import CBOILogo from "../components/CBOILogo";
-import CBOILoader from "../components/CBOILoader";
+import CBOISmallLogo from "../components/CBOISmallLogo";
 
 export default function Sidebar({ collapsed }) {
   const navigate = useNavigate();
@@ -37,7 +37,7 @@ export default function Sidebar({ collapsed }) {
           background: "#fff"
         }}
       >
-        {collapsed ? <CBOILoader size={28} /> : <CBOILogo />}
+        {collapsed ? <CBOISmallLogo size={28} /> : <CBOILogo />}
       </div>
 
       {/* MENU */}

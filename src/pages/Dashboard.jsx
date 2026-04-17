@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { apiService } from "../services/serviceApi";
 import VpaSelectorDialog from "../components/VpaSelectorDialog";
+import CBOILoader from "../components/CBOILoader";
 
 import { Box, Typography, Card, Select, MenuItem, Grid } from "@mui/material";
 
@@ -19,7 +20,13 @@ export default function Dashboard() {
   const [tempSelection, setTempSelection] = useState(null);
   const [dateFilter, setDateFilter] = useState("today");
 
-  const { selectedVpa, setSelectedVpa, reportData, setReportData, setReportList } = useApp();
+  const {
+    selectedVpa,
+    setSelectedVpa,
+    reportData,
+    setReportData,
+    setReportList,
+  } = useApp();
 
   const hasFetched = useRef(false);
 
@@ -36,12 +43,15 @@ export default function Dashboard() {
         });
 
         const list = res?.data || [];
-
         setVpaList(list);
 
         if (list.length > 0) {
-          setTempSelection(list[0]);
-          setOpenDialog(true);
+          if (!selectedVpa?.vpa_id) {
+            setTempSelection(list[0]);
+            setOpenDialog(true);
+          } else {
+            setTempSelection(selectedVpa);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -54,26 +64,31 @@ export default function Dashboard() {
   }, []);
 
   const handleProceed = async () => {
+    setOpenDialog(false);
     setLoading(true);
 
-    const data = await fetchReportData(tempSelection, dateFilter);
+    try {
+      const data = await fetchReportData(tempSelection, dateFilter);
 
-    setReportData({
-      count: data.count,
-      amount: data.amount,
-    });
+      setReportData({
+        count: data.count,
+        amount: data.amount,
+      });
 
-    setReportList(data.raw);
+      setReportList(data.raw);
 
-    setSelectedVpa(tempSelection);
-    setOpenDialog(false);
-
-    setLoading(false);
+      setSelectedVpa(tempSelection);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     const load = async () => {
       if (selectedVpa) {
+        setLoading(true);
         const data = await fetchReportData(selectedVpa, dateFilter);
 
         setReportData({
@@ -81,234 +96,240 @@ export default function Dashboard() {
           amount: data.amount,
         });
 
-        setReportList(data.raw); 
+        setReportList(data.raw);
+        setLoading(false);
       }
     };
 
     load();
   }, [dateFilter]);
 
-  if (loading) return <div>Loading...</div>;
+  if (loading && !selectedVpa) return <CBOILoader />;
 
   return (
-    <Box p={3}>
-      {/* HEADER */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          mb: 2,
-          width: "100%",
-        }}
-      >
-        {/* LEFT */}
+    <>
+      {loading && selectedVpa && <CBOILoader size={50} />}
+      <Box p={3}>
+        {/* HEADER */}
         <Box
           sx={{
             display: "flex",
-            flexDirection: "column",
-            gap: "4px",
-            flexShrink: 0, 
-          }}
-        >
-          <Typography variant="h6" sx={{ color: "#1d1d1d" }}>
-            Dashboard
-          </Typography>
-
-          <Typography variant="body2">
-            <b>VPA ID :</b>{" "}
-            <span
-              style={{
-                color: "#1976d2",
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
-              onClick={() => setOpenDialog(true)}
-            >
-              {selectedVpa?.vpa_id}
-            </span>
-          </Typography>
-        </Box>
-
-        {/* RIGHT */}
-        <Box
-          sx={{
-            display: "flex",
+            justifyContent: "space-between",
             alignItems: "center",
-            justifyContent: "flex-end",
-            minWidth: "140px", 
+            mb: 2,
+            width: "100%",
           }}
         >
-          <Select
-            size="small"
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
+          {/* LEFT */}
+          <Box
             sx={{
-              minWidth: 120,
-              background: "#fff",
-              borderRadius: "8px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "4px",
+              flexShrink: 0,
             }}
           >
-            <MenuItem value="today">Today</MenuItem>
-            <MenuItem value="yesterday">Yesterday</MenuItem>
-          </Select>
+            <Typography variant="h6" sx={{ color: "#1d1d1d" }}>
+              Dashboard
+            </Typography>
+
+            <Typography variant="body2">
+              <b>VPA ID :</b>{" "}
+              <span
+                style={{
+                  color: "#1976d2",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+                onClick={() => setOpenDialog(true)}
+              >
+                {selectedVpa?.vpa_id}
+              </span>
+            </Typography>
+          </Box>
+
+          {/* RIGHT */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              minWidth: "140px",
+            }}
+          >
+            <Select
+              size="small"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              sx={{
+                minWidth: 120,
+                background: "#fff",
+                borderRadius: "8px",
+              }}
+            >
+              <MenuItem value="today">Today</MenuItem>
+              <MenuItem value="yesterday">Yesterday</MenuItem>
+            </Select>
+          </Box>
         </Box>
-      </Box>
 
-      {/* KPI */}
-      <Box sx={{ marginTop: 3 }}>
-        {selectedVpa && (
-          <Grid container spacing={3} mt={8} columnSpacing={12}>
-            {/* TRANSACTIONS */}
-            <Grid
-              item
-              xs={12}
-              md={6}
-              display="flex"
-              justifyContent="flex-start"
-            >
-              <Card
-                sx={{
-                  borderRadius: 3,
-                  px: 3,
-                  py: 2,
-                  width: "100%",
-                  maxWidth: "480px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                }}
+        {/* KPI */}
+        <Box sx={{ marginTop: 3 }}>
+          {selectedVpa && (
+            <Grid container spacing={3} mt={8} columnSpacing={12}>
+              {/* TRANSACTIONS */}
+              <Grid
+                item
+                xs={12}
+                md={6}
+                display="flex"
+                justifyContent="flex-start"
               >
-                {/* LEFT */}
-                <Box
+                <Card
                   sx={{
+                    borderRadius: 3,
+                    px: 3,
+                    py: 2,
+                    width: "100%",
+                    maxWidth: "480px",
                     display: "flex",
+                    justifyContent: "space-between",
                     alignItems: "center",
-                    gap: 1.5, 
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
                   }}
                 >
+                  {/* LEFT */}
                   <Box
                     sx={{
-                      background: "#e3f2fd",
-                      width: 36,
-                      height: 36,
-                      borderRadius: "50%",
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
+                      gap: 1.5,
                     }}
                   >
-                    <SyncAltIcon sx={{ color: "#000", fontSize: 18 }} />
+                    <Box
+                      sx={{
+                        background: "#e3f2fd",
+                        width: 36,
+                        height: 36,
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <SyncAltIcon sx={{ color: "#000", fontSize: 18 }} />
+                    </Box>
+
+                    <Typography
+                      sx={{
+                        fontSize: "13px",
+                        color: "#6b7280",
+                        fontWeight: 500,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      Total Transactions
+                    </Typography>
                   </Box>
 
+                  {/* RIGHT VALUE */}
                   <Typography
                     sx={{
-                      fontSize: "13px",
-                      color: "#6b7280",
-                      fontWeight: 500,
-                      whiteSpace: "nowrap"
+                      fontSize: "18px",
+                      fontWeight: 600,
+                      paddingLeft:"100px"
                     }}
                   >
-                    Total Transactions
+                    {reportData?.count}
                   </Typography>
-                </Box>
+                </Card>
+              </Grid>
 
-                {/* RIGHT VALUE */}
-                <Typography
-                  sx={{
-                    fontSize: "18px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {reportData?.count}
-                </Typography>
-              </Card>
-            </Grid>
-
-            {/* AMOUNT */}
-            <Grid
-              item
-              xs={12}
-              md={6}
-              display="flex"
-              justifyContent="flex-start"
-            >
-              <Card
-                sx={{
-                  borderRadius: 3,
-                  px: 3,
-                  py: 2,
-                  width: "100%",
-                  maxWidth: "480px",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-                }}
+              {/* AMOUNT */}
+              <Grid
+                item
+                xs={12}
+                md={6}
+                display="flex"
+                justifyContent="flex-start"
               >
-                {/* LEFT */}
-                <Box
+                <Card
                   sx={{
+                    borderRadius: 3,
+                    px: 3,
+                    py: 2,
+                    width: "100%",
+                    maxWidth: "480px",
                     display: "flex",
+                    justifyContent: "space-between",
                     alignItems: "center",
-                    gap: 1.5,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
                   }}
                 >
+                  {/* LEFT */}
                   <Box
                     sx={{
-                      background: "#e3f2fd",
-                      width: 36,
-                      height: 36,
-                      borderRadius: "50%",
                       display: "flex",
                       alignItems: "center",
-                      justifyContent: "center",
-                      flexShrink: 0,
+                      gap: 1.5,
                     }}
                   >
-                    <LocalAtmIcon sx={{ color: "#000", fontSize: 18 }} />
+                    <Box
+                      sx={{
+                        background: "#e3f2fd",
+                        width: 36,
+                        height: 36,
+                        borderRadius: "50%",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <LocalAtmIcon sx={{ color: "#000", fontSize: 18 }} />
+                    </Box>
+
+                    <Typography
+                      sx={{
+                        fontSize: "13px",
+                        color: "#6b7280",
+                        fontWeight: 500,
+                        whiteSpace: "nowrap",
+                      }}
+                      >
+                      Total Amount
+                    </Typography>
                   </Box>
 
+                  {/* RIGHT VALUE */}
                   <Typography
                     sx={{
-                      fontSize: "13px",
-                      color: "#6b7280",
-                      fontWeight: 500,
-                      whiteSpace: "nowrap",
+                      fontSize: "18px",
+                      fontWeight: 600,
+                      paddingLeft:"100px"
                     }}
                   >
-                    Total Amount
+                    {reportData?.amount}
                   </Typography>
-                </Box>
-
-                {/* RIGHT VALUE */}
-                <Typography
-                  sx={{
-                    fontSize: "18px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {reportData?.amount}
-                </Typography>
-              </Card>
+                </Card>
+              </Grid>
             </Grid>
-          </Grid>
-        )}
-      </Box>
+          )}
+        </Box>
 
-      {/* DIALOG COMPONENT */}
-      <VpaSelectorDialog
-        open={openDialog}
-        vpaList={vpaList}
-        tempSelection={tempSelection}
-        setTempSelection={setTempSelection}
-        onCancel={() => {
-          if (selectedVpa) setOpenDialog(false);
-        }}
-        onProceed={handleProceed}
-      />
-    </Box>
+        {/* DIALOG COMPONENT */}
+        <VpaSelectorDialog
+          open={openDialog}
+          vpaList={vpaList}
+          tempSelection={tempSelection}
+          setTempSelection={setTempSelection}
+          onCancel={() => {
+            if (selectedVpa) setOpenDialog(false);
+          }}
+          onProceed={handleProceed}
+        />
+      </Box>
+    </>
   );
 }

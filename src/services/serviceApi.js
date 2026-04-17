@@ -37,8 +37,8 @@ async function encryptData(data) {
 async function decryptData(cipher) {
   const res = await apiEncr.post(
     "/decr",
-    { req: cipher }, 
-    { headers: { Key: ENCR_KEY } }
+    { req: cipher },
+    { headers: { Key: ENCR_KEY } },
   );
 
   return res.data;
@@ -52,10 +52,7 @@ export const apiService = {
       RequestData: encrypted,
     });
 
-    const cipher =
-      res.data?.data ||
-      res.data?.Data ||
-      res.data?.ResponseData;
+    const cipher = res.data?.data || res.data?.Data || res.data?.ResponseData;
 
     const decrypted = await decryptData(cipher);
 
@@ -152,6 +149,79 @@ export const apiService = {
       return decrypted;
     } catch (err) {
       console.error("Update Language error:", err);
+      throw err;
+    }
+  },
+
+  filterTickets: async (payload) => {
+    try {
+      const encrypted = await encryptData(payload);
+
+      const res = await apiAuth.post("/CBOI/zendesk/v2/filterTickets", {
+        RequestData: encrypted,
+      });
+
+      const cipher = res.data?.data || res.data?.Data || res.data?.ResponseData;
+
+      const decrypted = await decryptData(cipher);
+
+      return decrypted;
+    } catch (err) {
+      console.error("Filter Tickets error:", err);
+      throw err;
+    }
+  },
+  viewTicket: async (payload) => {
+    try {
+      const encrypted = await encryptData(payload);
+
+      const res = await apiAuth.post("/CBOI/zendesk/v2/viewTicket", {
+        RequestData: encrypted,
+      });
+
+      const cipher = res.data?.data || res.data?.Data || res.data?.ResponseData;
+
+      const decrypted = await decryptData(cipher);
+
+      return decrypted;
+    } catch (err) {
+      console.error("View Ticket error:", err);
+      throw err;
+    }
+  },
+
+  showComment: async (payload) => {
+    try {
+      const encrypted = await encryptData(payload);
+
+      const res = await apiAuth.post("/CBOI/zendesk/v2/showComment", {
+        RequestData: encrypted,
+      });
+
+      const cipher = res.data?.data || res.data?.Data || res.data?.ResponseData;
+
+      const decrypted = await decryptData(cipher);
+
+      return decrypted;
+    } catch (err) {
+      console.error("Show Comment error:", err);
+      throw err;
+    }
+  },
+
+  downloadTicket: async ({ ticket_id, user_name }) => {
+    try {
+      const res = await apiServices.get("/CBOI/zendesk/v2/downloadByID", {
+        params: {
+          ticket_id,
+          user_name,
+        },
+        responseType: "blob",
+      });
+
+      return res.data;
+    } catch (err) {
+      console.error("Download Ticket error:", err);
       throw err;
     }
   },

@@ -11,6 +11,7 @@ import Help from "./pages/Help";
 import Profile from "./pages/Profile";
 import RaiseTicket from "./pages/RaiseTicket";
 import ViewTicket from "./pages/ViewTicket";
+import TicketDetails from "./pages/TicketDetails";
 
 const ProtectedRoute = ({ children }) => {
   const isAuth = localStorage.getItem("isAuthenticated") === "true";
@@ -40,6 +41,7 @@ export default function App() {
           <Route path="/profile" element={<Profile />} />
           <Route path="/raise-ticket" element={<RaiseTicket />} />
           <Route path="/view-ticket" element={<ViewTicket />} />
+          <Route path="/view-tickets/:id" element={<TicketDetails />} />
         </Route>
       </Routes>
     </BrowserRouter>

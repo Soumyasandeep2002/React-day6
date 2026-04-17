@@ -21,15 +21,17 @@ import {
 
 import { useApp } from "../context/AppContext";
 import { fetchReportData } from "../utility/utils";
+import CBOILoader from "../components/CBOILoader";
 
 export default function Transactions() {
   const { selectedVpa } = useApp();
   const hasFetched = useRef(false);
 
   const [filter, setFilter] = useState("today");
-  const [monthOption, setMonthOption] = useState("1"); 
+  const [monthOption, setMonthOption] = useState("1");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const [data, setData] = useState([]);
   const [search, setSearch] = useState("");
@@ -40,6 +42,8 @@ export default function Transactions() {
   const fetchTransactions = async (type = "today", customStart, customEnd) => {
     try {
       if (!selectedVpa) return;
+
+      setLoading(true); 
 
       let result;
 
@@ -77,6 +81,8 @@ export default function Transactions() {
       setPage(0);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -152,7 +158,7 @@ export default function Transactions() {
   );
 
   return (
-    <Box p={3}>
+    <Box p={3} sx={{ position: "relative" }}>
       <Typography variant="h6" mb={2}>
         Transaction Details
       </Typography>
@@ -166,7 +172,7 @@ export default function Transactions() {
           value={filter}
           onChange={(e) => {
             setFilter(e.target.value);
-            hasFetched.current = false; 
+            hasFetched.current = false;
           }}
         >
           <FormControlLabel value="today" control={<Radio />} label="Today" />
@@ -182,8 +188,8 @@ export default function Transactions() {
               onChange={(e) => setMonthOption(e.target.value)}
               size="small"
               sx={{
-                minWidth: 180, 
-                mr: 2, 
+                minWidth: 180,
+                mr: 2,
               }}
             >
               <MenuItem value="1">Last 1 Month</MenuItem>
@@ -191,11 +197,7 @@ export default function Transactions() {
               <MenuItem value="6">Last 6 Months</MenuItem>
             </Select>
 
-            <Button
-              variant="contained"
-              size="small"
-              onClick={handleSubmit}
-            >
+            <Button variant="contained" size="small" onClick={handleSubmit}>
               Submit
             </Button>
           </Box>
@@ -210,7 +212,7 @@ export default function Transactions() {
               onChange={(e) => setStartDate(e.target.value)}
               sx={{
                 minWidth: 150,
-                paddingRight:"20px",
+                paddingRight: "20px",
                 "& .MuiInputBase-root": {
                   height: 30,
                   fontSize: "13px",
@@ -224,7 +226,7 @@ export default function Transactions() {
               onChange={(e) => setEndDate(e.target.value)}
               sx={{
                 minWidth: 150,
-                paddingRight:"20px",
+                paddingRight: "20px",
                 "& .MuiInputBase-root": {
                   height: 30,
                   fontSize: "13px",
@@ -237,7 +239,7 @@ export default function Transactions() {
               size="small"
               onClick={handleSubmit}
               sx={{
-                height: 27, 
+                height: 27,
                 px: 2,
               }}
             >
@@ -247,6 +249,24 @@ export default function Transactions() {
         )}
       </Card>
 
+      {loading && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: "rgba(255,255,255,0.6)",
+            zIndex: 10,
+          }}
+        >
+          <CBOILoader size={50} />
+        </Box>
+      )}
       {/* TABLE */}
       <Card sx={{ p: 2 }}>
         {/* SEARCH */}
@@ -261,7 +281,7 @@ export default function Transactions() {
               py: "3px",
               borderRadius: 1,
               width: 220,
-              fontSize: "13px", 
+              fontSize: "13px",
             }}
           />
         </Box>
